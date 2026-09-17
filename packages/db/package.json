@@ -1,0 +1,30 @@
+{
+  "name": "@sum/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --conditions=development src/migrate.ts",
+    "db:migrate:prod": "node dist/migrate.js"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.16.0",
+    "dotenv": "^17.2.0",
+    "@sum/contracts": "*"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "@types/pg": "^8.15.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@sum/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --conditions=development watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sum/contracts": "*",
+    "@sum/db": "*",
+    "@stripe/link-sdk": "0.5.0",
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/static": "^10.1.3",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/compress": "^8.0.0",
+    "fastify": "^5.6.0",
+    "drizzle-orm": "^0.45.2",
+    "dotenv": "^17.2.0",
+    "zod": "^4.1.0"
+  }
+}

@@ -1,0 +1,44 @@
+services:
+  app:
+    profiles: [production]
+    build: .
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://sum:sum@db:5432/sum
+      SUM_ORIGIN: ${SUM_ORIGIN:-http://localhost:3003}
+      SUM_ENCRYPTION_KEY: ${SUM_ENCRYPTION_KEY:?Set SUM_ENCRYPTION_KEY in .env}
+      SUM_LINK_CLIENT_ID: ${SUM_LINK_CLIENT_ID:-lwlpk_U7Qy7ThG69STZk}
+      SUM_TRUST_PROXY: ${SUM_TRUST_PROXY:-false}
+    ports: ['127.0.0.1:3003:3003']
+    depends_on:
+      db: { condition: service_healthy }
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3003/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sum
+      POSTGRES_PASSWORD: sum
+      POSTGRES_DB: sum
+    ports: ['127.0.0.1:5434:5432']
+    volumes: ['sum-postgres:/var/lib/postgresql/data']
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U sum]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  sum-postgres:
