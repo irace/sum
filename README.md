@@ -24,7 +24,7 @@ For hot reload, use `npm run dev` and open http://localhost:5175. Vite proxies A
 
 ## Access from another computer
 
-On the current Mac mini deployment, connect the other computer to the same Tailscale network and open **https://cerebro.reverse-locrian.ts.net:3003/**. Tailscale Serve terminates HTTPS and forwards to Sum on the loopback port. The app is configured with this exact `SUM_ORIGIN`, so Link sign-in uses secure, same-origin cookies.
+Tailscale Serve terminates HTTPS and forwards to Sum on the loopback port. The app is configured with this exact `SUM_ORIGIN`, so Link sign-in uses secure, same-origin cookies.
 
 The route was set with `tailscale serve --bg --https=3003 http://127.0.0.1:3003`. It stays private to the tailnet. A move to a public host requires updating `SUM_ORIGIN` to its final HTTPS domain and redeploying.
 
