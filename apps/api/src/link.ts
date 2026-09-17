@@ -7,7 +7,7 @@ import Link, {
   type UserInfo,
 } from '@stripe/link-sdk';
 import { z } from 'zod';
-import { AppError } from './security.js';
+import { AppError, fingerprintToken } from './security.js';
 
 export interface Tokens {
   access_token: string;
@@ -165,6 +165,31 @@ export function createLinkProvider(): LinkProvider {
       }
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok) {
+        const providerHeaders: Record<string, string> = {};
+        for (const name of [
+          'content-type',
+          'date',
+          'server',
+          'www-authenticate',
+          'request-id',
+          'x-request-id',
+          'stripe-request-id',
+          'cf-ray',
+        ]) {
+          const value = response.headers.get(name);
+          if (value) providerHeaders[name] = value;
+        }
+        const providerError =
+          data && typeof data === 'object'
+            ? ['error', 'code']
+                .map((key) => {
+                  const value = (data as Record<string, unknown>)[key];
+                  return typeof value === 'string' ? `${key}=${value.slice(0, 120)}` : null;
+                })
+                .filter((value): value is string => value !== null)
+                .join(' ')
+                .slice(0, 300) || undefined
+            : undefined;
         const providerRequestId =
           response.headers.get('request-id') ??
           response.headers.get('x-request-id') ??
@@ -175,13 +200,25 @@ export function createLinkProvider(): LinkProvider {
             502,
             'Link approved the connection, but Sum could not read your Link identity. Please try again.',
             response.status === 401 ? 'link_identity_unauthorized' : 'link_identity_failed',
-            { providerRequestId, providerStatus: response.status },
+            {
+              providerRequestId,
+              providerStatus: response.status,
+              providerHeaders,
+              providerError,
+              providerTokenFingerprint: fingerprintToken(accessToken),
+            },
           );
         throw new AppError(
           502,
           'Link approved the connection, but Sum could not read your Link identity. Please try again.',
           'link_identity_failed',
-          { providerRequestId, providerStatus: response.status },
+          {
+            providerRequestId,
+            providerStatus: response.status,
+            providerHeaders,
+            providerError,
+            providerTokenFingerprint: fingerprintToken(accessToken),
+          },
         );
       }
       if (!data || typeof data !== 'object') return {};

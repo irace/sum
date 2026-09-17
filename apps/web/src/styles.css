@@ -460,6 +460,27 @@ button {
   color: #72806f;
   letter-spacing: 0.6px;
 }
+.welcome-minimal-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: 32px;
+}
+.welcome-minimal .welcome-login {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  max-width: none;
+}
+.welcome-minimal .login-content {
+  padding: 0;
+}
+.welcome-minimal .button.primary.full {
+  width: min(320px, calc(100vw - 64px));
+}
 .verification {
   display: flex;
   flex-direction: column;

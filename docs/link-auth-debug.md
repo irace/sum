@@ -52,7 +52,30 @@ After the identity error mapping was deployed, the approved poll returned HTTP 5
 }
 ```
 
-The current source distinguishes HTTP 401 as `link_identity_unauthorized`, refreshes once with `POST https://login.link.com/device/token` using the refresh-token grant, and retries `/userinfo`. HTTP 403 and other non-2xx responses do not retry. AppError logs now record only the route, Link's upstream provider status, error code, whether an identity retry occurred, and (when supplied) Link's request ID; cookies, authorization headers, bodies, and tokens remain redacted.
+## Latest captured attempt
+
+The rebuilt diagnostic image produced this decisive line at `2026-09-17T02:26:56.473Z`:
+
+```json
+{
+  "route": "/api/v1/auth/link/poll",
+  "errorCode": "link_identity_unauthorized",
+  "providerStatus": 401,
+  "providerHeaders": {
+    "content-type": "application/json;charset=utf-8",
+    "date": "Thu, 17 Sep 2026 02:26:56 GMT",
+    "server": "nginx"
+  },
+  "providerTokenFingerprint": "cbeea47b57871d4a",
+  "identityRetried": true
+}
+```
+
+The corresponding approved poll began at `02:26:55.390Z` and completed at `02:26:56.475Z` with HTTP 502. `identityRetried:true` means Sum attempted the refresh-token grant and retried `/userinfo`; because the final error remained `link_identity_unauthorized`, the refreshed access token was also rejected with 401. Link did not return `www-authenticate`, `request-id`, `x-request-id`, or `stripe-request-id` headers.
+
+The current source distinguishes HTTP 401 as `link_identity_unauthorized`, refreshes once with `POST https://login.link.com/device/token` using the refresh-token grant, and retries `/userinfo`. HTTP 403 and other non-2xx responses do not retry. AppError logs now record only the route, Link's upstream provider status, an allowlisted response-header set, bounded `error`/`code` fields, whether an identity retry occurred, a short one-way token fingerprint, and (when supplied) Link's request ID; cookies, authorization headers, bodies, and tokens remain redacted.
+
+The raw bearer and refresh tokens must not be copied into Docker logs, chat, or an issue. If Link needs to reproduce a token-specific case, capture it in a local `0600` file and transmit it through Link's approved secure channel, then revoke it.
 
 ## What remains unknown
 
@@ -69,4 +92,4 @@ cd /Users/bryan/dev/sum
 docker compose --profile production logs --timestamps --tail=240 app
 ```
 
-For a live attempt, start `docker compose --profile production logs --timestamps -f app`, complete one Link approval, then stop the log stream. The relevant completion lines contain `route`, `errorCode`, and `providerStatus` without credentials.
+For a live attempt, start `docker compose --profile production logs --timestamps -f app`, complete one Link approval, then stop the log stream. The relevant completion lines contain `route`, `errorCode`, `providerStatus`, `providerHeaders`, `providerError`, `providerTokenFingerprint`, and `identityRetried` without credentials.

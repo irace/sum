@@ -131,7 +131,15 @@ function Modal({
     </dialog>
   );
 }
-function LinkLogin({ onDone, onClose }: { onDone: () => void; onClose?: () => void }) {
+function LinkLogin({
+  onDone,
+  onClose,
+  minimal = false,
+}: {
+  onDone: () => void;
+  onClose?: () => void;
+  minimal?: boolean;
+}) {
   const [challenge, setChallenge] = useState<LoginChallenge | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const start = useMutation({
@@ -180,14 +188,18 @@ function LinkLogin({ onDone, onClose }: { onDone: () => void; onClose?: () => vo
   }, [challenge, problem]);
   return (
     <div className="login-content">
-      <div className="integration-icon">
-        <Link2 size={28} />
-      </div>
-      <p className="eyebrow">A CLEARER CONNECTION</p>
-      <h2>{challenge && !problem ? 'One quick approval.' : 'Your money, in view.'}</h2>
-      <p className="muted">
-        Connect your Link account to bring your accounts, balances, and transactions into Sum.
-      </p>
+      {!minimal && (
+        <>
+          <div className="integration-icon">
+            <Link2 size={28} />
+          </div>
+          <p className="eyebrow">A CLEARER CONNECTION</p>
+          <h2>{challenge && !problem ? 'One quick approval.' : 'Your money, in view.'}</h2>
+          <p className="muted">
+            Connect your Link account to bring your accounts, balances, and transactions into Sum.
+          </p>
+        </>
+      )}
       {challenge && !problem ? (
         <>
           <div className="verification">
@@ -217,15 +229,17 @@ function LinkLogin({ onDone, onClose }: { onDone: () => void; onClose?: () => vo
             onClick={() => start.mutate()}
           >
             {start.isPending ? <Loader2 size={16} className="spin" /> : <Link2 size={16} />}{' '}
-            {problem ? 'Try again with Link' : 'Continue with Link'}
+            {minimal ? 'Sign in with Link' : problem ? 'Try again with Link' : 'Continue with Link'}
             <ArrowRight size={17} />
           </button>
         </>
       )}
-      <div className="permission-note">
-        <ShieldCheck size={16} />
-        <span>Read-only access. Sum can’t move your money.</span>
-      </div>
+      {!minimal && (
+        <div className="permission-note">
+          <ShieldCheck size={16} />
+          <span>Read-only access. Sum can’t move your money.</span>
+        </div>
+      )}
       {onClose && (
         <button className="text-button" onClick={onClose}>
           Back to Sum
@@ -236,61 +250,13 @@ function LinkLogin({ onDone, onClose }: { onDone: () => void; onClose?: () => vo
 }
 function Welcome({ onDone }: { onDone: () => void }) {
   return (
-    <div className="welcome">
-      <header className="welcome-header">
+    <div className="welcome welcome-minimal">
+      <main className="welcome-minimal-main">
         <Logo />
-        <span className="eyebrow">PERSONAL FINANCE, SIMPLIFIED</span>
-        <a href="https://app.link.com" target="_blank" rel="noreferrer">
-          Powered by Link <ArrowUpRight size={13} />
-        </a>
-      </header>
-      <main className="welcome-main">
-        <section className="welcome-copy">
-          <div className="eyebrow green">
-            <span className="status-dot" /> A LITTLE CLARITY GOES A LONG WAY
-          </div>
-          <h1>
-            Less noise.
-            <br />
-            More <span>perspective.</span>
-          </h1>
-          <p>
-            All your connected accounts.
-            <br />
-            Every transaction. A clearer picture.
-          </p>
-          <div className="manifest">
-            <div className="manifest-head">
-              <Terminal size={14} />
-              <span>sum / the essentials</span>
-              <span className="manifest-dots">···</span>
-            </div>
-            {[
-              ['01', 'Accounts', 'Everything in one place.'],
-              ['02', 'Balances', 'Know where you stand.'],
-              ['03', 'Transactions', 'Follow the details.'],
-            ].map(([n, title, description]) => (
-              <div className="manifest-row" key={n}>
-                <span>{n}</span>
-                <strong>{title}</strong>
-                <small>{description}</small>
-                <Check size={14} />
-              </div>
-            ))}
-          </div>
-          <div className="welcome-caption">
-            Less spreadsheet. More headspace.<span>∑</span>
-          </div>
-        </section>
         <section className="welcome-login">
-          <LinkLogin onDone={onDone} />
-          <div className="login-foot">Your data stays yours. Always.</div>
+          <LinkLogin minimal onDone={onDone} />
         </section>
       </main>
-      <footer className="welcome-footer">
-        <span>SUM / A PERSONAL FINANCIAL PICTURE</span>
-        <span>Built for the details. Designed for the everyday.</span>
-      </footer>
     </div>
   );
 }
