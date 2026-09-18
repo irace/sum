@@ -2,25 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
-  Check,
   ChevronRight,
-  CircleHelp,
-  CreditCard,
-  Database,
-  Landmark,
-  Layers2,
-  Link2,
-  ListFilter,
+  Info,
   Loader2,
   LogOut,
   RefreshCw,
   Search,
-  ShieldCheck,
-  Terminal,
-  Wallet,
   X,
 } from 'lucide-react';
 import {
@@ -30,6 +19,8 @@ import {
   type Filters,
   type LoginChallenge,
   type LoginStatus,
+  type LinkInspection,
+  type LinkResource,
   type SessionResponse,
   type SyncState,
   type Transaction,
@@ -58,9 +49,11 @@ function Logo() {
   return (
     <span className="wordmark">
       <span className="sum-mark" aria-hidden="true">
-        ∑
+        <svg className="sum-symbol" viewBox="0 0 48 48" focusable="false">
+          <path d="M6 4h35l3 12h-5l-3-7H17l17 15-17 15h19l3-7h5l-3 12H6v-4l19-16L6 8V4Z" />
+        </svg>
       </span>
-      sum<span className="wordmark-dot">.</span>
+      SUM
     </span>
   );
 }
@@ -76,22 +69,12 @@ function Spinner({ label = 'Loading' }: { label?: string }) {
     <div className="loading" role="status">
       <Loader2 className="spin" size={18} />
       {label}
-      <span className="terminal-cursor">_</span>
     </div>
   );
 }
-function Empty({
-  title,
-  children,
-  icon = <Layers2 size={25} />,
-}: {
-  title: string;
-  children: ReactNode;
-  icon?: ReactNode;
-}) {
+function Empty({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="empty">
-      <span className="empty-icon">{icon}</span>
       <h3>{title}</h3>
       <p>{children}</p>
     </div>
@@ -101,10 +84,12 @@ function Modal({
   title,
   children,
   onClose,
+  wide = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  wide?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -115,7 +100,7 @@ function Modal({
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className={`modal ${wide ? 'modal-wide' : ''}`}
       onCancel={onClose}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -190,14 +175,7 @@ function LinkLogin({
     <div className="login-content">
       {!minimal && (
         <>
-          <div className="integration-icon">
-            <Link2 size={28} />
-          </div>
-          <p className="eyebrow">A CLEARER CONNECTION</p>
-          <h2>{challenge && !problem ? 'One quick approval.' : 'Your money, in view.'}</h2>
-          <p className="muted">
-            Connect your Link account to bring your accounts, balances, and transactions into Sum.
-          </p>
+          <p className="muted">Reconnect your Link account to resume syncing.</p>
         </>
       )}
       {challenge && !problem ? (
@@ -228,17 +206,11 @@ function LinkLogin({
             disabled={start.isPending}
             onClick={() => start.mutate()}
           >
-            {start.isPending ? <Loader2 size={16} className="spin" /> : <Link2 size={16} />}{' '}
+            {start.isPending && <Loader2 size={16} className="spin" />}
             {minimal ? 'Sign in with Link' : problem ? 'Try again with Link' : 'Continue with Link'}
-            <ArrowRight size={17} />
+            {!minimal && <ArrowRight size={17} />}
           </button>
         </>
-      )}
-      {!minimal && (
-        <div className="permission-note">
-          <ShieldCheck size={16} />
-          <span>Read-only access. Sum can’t move your money.</span>
-        </div>
       )}
       {onClose && (
         <button className="text-button" onClick={onClose}>
@@ -276,7 +248,7 @@ export function App() {
     return (
       <div className="boot">
         <Logo />
-        <Spinner label="Opening your workspace" />
+        <Spinner label="Loading" />
       </div>
     );
   if (session.error)
@@ -296,7 +268,6 @@ function Workspace({ user }: { user: User }) {
   const client = useQueryClient();
   const navigate = useNavigate();
   const [reconnect, setReconnect] = useState(false);
-  const [help, setHelp] = useState(false);
   const [waitingUntil, setWaitingUntil] = useState(0);
   const sync = useQuery({
     queryKey: ['sync', user.id],
@@ -345,54 +316,20 @@ function Workspace({ user }: { user: User }) {
     },
   });
   const busy = refresh.isPending || sync.data?.status === 'running';
-  const activeAccounts = accounts.data?.data.filter((a) => a.active).length ?? 0;
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
           <Logo />
-          <span className="version">v0.1</span>
         </div>
-        <div className="workspace-label">
-          <span className="avatar">{(user.name || user.email).slice(0, 1).toUpperCase()}</span>
-          <div>
-            <strong>Personal workspace</strong>
-            <span>YOUR MONEY, ORGANIZED</span>
-          </div>
-        </div>
-        <p className="nav-label">WORKSPACE</p>
         <nav aria-label="Main navigation">
           <NavLink to="/" end>
-            <Wallet size={17} />
-            Accounts<span className="nav-count">{String(activeAccounts).padStart(2, '0')}</span>
+            Accounts
           </NavLink>
-          <NavLink to="/transactions">
-            <Layers2 size={17} />
-            Transactions
-          </NavLink>
-          <NavLink to="/connection">
-            <Link2 size={17} />
-            Connection
-          </NavLink>
+          <NavLink to="/transactions">Transactions</NavLink>
+          <NavLink to="/connection">Connection</NavLink>
         </nav>
         <div className="sidebar-bottom">
-          <div className="source-status">
-            <span className={`status-dot ${sync.data?.needsReconnect ? 'amber' : ''}`} />
-            <div>
-              <strong>
-                {sync.data?.needsReconnect ? 'Connection needs attention' : 'Connected with Link'}
-              </strong>
-              <span>
-                {busy
-                  ? 'Syncing your data…'
-                  : `Last sync · ${ago(sync.data?.lastSuccessAt ?? null)}`}
-              </span>
-            </div>
-          </div>
-          <button className="sidebar-help" onClick={() => setHelp(true)}>
-            <CircleHelp size={15} />A note on your data
-            <ArrowUpRight size={13} />
-          </button>
           <div className="user-menu">
             <span title={user.email}>{user.email}</span>
             <button
@@ -408,16 +345,12 @@ function Workspace({ user }: { user: User }) {
       </aside>
       <div className="main-shell">
         <header className="topbar">
-          <div className="breadcrumb">
-            <Terminal size={14} />
-            <span>workspace</span>
-            <span className="slash">/</span>
-            <span className="breadcrumb-current">personal</span>
-          </div>
+          <span className="sync-time">
+            {busy
+              ? `Syncing${sync.data?.transactionsFetched ? ` · ${sync.data.transactionsFetched} transactions` : ''}`
+              : `Updated ${ago(sync.data?.lastSuccessAt ?? null)}`}
+          </span>
           <div className="topbar-right">
-            <span className="topbar-readonly">
-              <span className="status-dot" /> READ ONLY
-            </span>
             <button className="button small" onClick={() => refresh.mutate(true)} disabled={busy}>
               <RefreshCw size={13} className={busy ? 'spin' : ''} />
               {busy ? 'Syncing' : 'Refresh'}
@@ -436,13 +369,6 @@ function Workspace({ user }: { user: User }) {
                   Reconnect <ArrowUpRight size={13} />
                 </button>
               )}
-            </div>
-          )}
-          {busy && (
-            <div className="sync-progress" role="status">
-              <span className="status-dot" />
-              Updating your financial picture
-              <span>{sync.data?.transactionsFetched ?? 0} transactions fetched</span>
             </div>
           )}
           <Routes>
@@ -478,15 +404,6 @@ function Workspace({ user }: { user: User }) {
             />
           </Routes>
         </main>
-        <footer className="app-footer">
-          <span>
-            <span className="footer-mark">∑</span> A little more clarity.
-          </span>
-          <span>
-            DATA FROM LINK <span className="footer-divider">/</span>{' '}
-            {sync.data?.historyComplete ? 'ALL AVAILABLE HISTORY' : 'HISTORY IMPORT PENDING'}
-          </span>
-        </footer>
       </div>
       {reconnect && (
         <Modal title="CONNECTION / LINK" onClose={() => setReconnect(false)}>
@@ -499,65 +416,208 @@ function Workspace({ user }: { user: User }) {
           />
         </Modal>
       )}
-      {help && (
-        <Modal title="GOOD TO KNOW" onClose={() => setHelp(false)}>
-          <div className="help-content">
-            <h2>A snapshot, not a crystal ball.</h2>
-            <p>
-              Sum shows the financial data your connected accounts make available through Link. Some
-              accounts may not support balances or transactions.
-            </p>
-            <p>
-              <strong>Current balance</strong> excludes pending transactions.{' '}
-              <strong>Available cash</strong> and <strong>credit used</strong> are shown separately.
-              Balances carry their original update time; refreshing Sum doesn’t force your bank to
-              update.
-            </p>
-            <p>
-              Transaction amounts are negative for money out and positive for money in. Categories
-              and statuses come from Link. Transactions from Link and bank connections are labeled
-              separately and aren’t merged by guesswork.
-            </p>
-            <p>
-              Sum checks for updates when you open it after 15 minutes, or when you press Refresh.
-              Saved history remains available during temporary outages.
-            </p>
+    </div>
+  );
+}
+type Screen = 'accounts' | 'transactions' | 'connection';
+const inspectable: Record<Screen, LinkResource[]> = {
+  accounts: ['sources', 'balances'],
+  transactions: ['transactions'],
+  connection: [],
+};
+function DataInspector({ screen }: { screen: Screen }) {
+  const [open, setOpen] = useState(false);
+  const [resource, setResource] = useState<LinkResource | null>(null);
+  const [result, setResult] = useState<LinkInspection | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [loading, setLoading] = useState(false);
+  async function fetchRaw(nextResource: LinkResource, cursor?: string) {
+    setLoading(true);
+    setError(null);
+    setResource(nextResource);
+    setResult(null);
+    try {
+      const query = new URLSearchParams({ resource: nextResource });
+      if (cursor) query.set('cursor', cursor);
+      setResult(await api<LinkInspection>(`/link/inspect?${query}`));
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <>
+      <button
+        className="icon-button info-button"
+        aria-label={`About ${screen} data`}
+        onClick={() => setOpen(true)}
+      >
+        <Info size={17} />
+      </button>
+      {open && (
+        <Modal title="Data sources" wide onClose={() => setOpen(false)}>
+          <div className="inspector">
+            {screen === 'accounts' && (
+              <>
+                <p>
+                  Sum joins saved <code>GET /sources</code> and <code>GET /balances</code> data by
+                  source ID. Each balance is a separate Link record. Account type tabs filter this
+                  saved list in your browser.
+                </p>
+                <p>
+                  Link requests: <code>limit=100</code>, then <code>starting_after</code> while{' '}
+                  <code>has_more</code> is true. Sum stores selected fields and serves the complete
+                  account list from its database. The account cards do not map to one Link call.
+                </p>
+                <div className="inspector-shapes">
+                  <div>
+                    <strong>Link request</strong>
+                    <code>GET /sources?limit=100&amp;starting_after=id</code>
+                    <code>GET /balances?limit=100&amp;starting_after=source_id</code>
+                  </div>
+                  <div>
+                    <strong>Link response</strong>
+                    <code>{'{ data: [{ id, name, type, ... }], has_more? }'}</code>
+                    <code>
+                      {'{ data: [{ source_id, type, current, currency, as_of, ... }], has_more? }'}
+                    </code>
+                  </div>
+                  <div>
+                    <strong>Sum response</strong>
+                    <code>{'GET /accounts → { data: [{ id, name, balances: [...] }], sync }'}</code>
+                  </div>
+                </div>
+              </>
+            )}
+            {screen === 'transactions' && (
+              <>
+                <p>
+                  Sum imports <code>GET /transactions</code> pages from Link with{' '}
+                  <code>limit=100</code> and <code>starting_after</code>. On the first import, it
+                  also makes a recent pass with <code>start_date</code> for the last 30 days.
+                </p>
+                <p>
+                  This table calls Sum’s <code>GET /transactions</code>. Search, account, category,
+                  origin, and date filters run in Sum’s database. Sum sorts by date and ID, returns
+                  50 rows per page, and supplies its own cursor. Load more requests the next Sum
+                  page. The browser combines loaded pages. A row has no one-to-one Link call.
+                </p>
+                <div className="inspector-shapes">
+                  <div>
+                    <strong>Link request</strong>
+                    <code>GET /transactions?limit=100&amp;starting_after=id</code>
+                  </div>
+                  <div>
+                    <strong>Link response</strong>
+                    <code>
+                      {
+                        '{ data: [{ id, source_id, created_date, description, amount, currency, category, origin, status }], has_more? }'
+                      }
+                    </code>
+                  </div>
+                  <div>
+                    <strong>Sum request</strong>
+                    <code>
+                      GET
+                      /transactions?q=&amp;account=&amp;category=&amp;origin=&amp;start=&amp;end=&amp;limit=50&amp;cursor=
+                    </code>
+                  </div>
+                  <div>
+                    <strong>Sum response</strong>
+                    <code>{'{ data: Transaction[], nextCursor: string | null }'}</code>
+                  </div>
+                </div>
+              </>
+            )}
+            {screen === 'connection' && (
+              <p>
+                Connection status and timestamps come from Sum’s <code>GET /sync</code> and its
+                saved credential state; your email comes from <code>GET /session</code>. Refresh
+                sends <code>POST /sync</code>, which starts the Link import described on the other
+                screens. There is no single Link response for this screen.
+              </p>
+            )}
+            {screen === 'connection' && (
+              <div className="inspector-shapes">
+                <div>
+                  <strong>Sum response</strong>
+                  <code>
+                    {'GET /sync → { status, lastSuccessAt, historyComplete, needsReconnect, ... }'}
+                  </code>
+                </div>
+              </div>
+            )}
+            {inspectable[screen].length > 0 && (
+              <div className="inspector-raw">
+                <p>
+                  Fetch a fresh Link page to inspect its JSON. This is a new read, so it may differ
+                  from the last saved sync. Sum returns the SDK-parsed response without applying its
+                  account or transaction normalization.
+                </p>
+                <div className="inspector-actions">
+                  {inspectable[screen].map((item) => (
+                    <button
+                      className="button small"
+                      key={item}
+                      disabled={loading}
+                      onClick={() => void fetchRaw(item)}
+                    >
+                      Raw {item}
+                    </button>
+                  ))}
+                </div>
+                {error !== null && <ErrorNote error={error} />}
+                {loading && <Spinner label="Fetching Link JSON" />}
+                {result && (
+                  <>
+                    <div className="inspector-request">
+                      <strong>Link request</strong>
+                      <code>
+                        {result.request.method} {result.request.path}?
+                        {new URLSearchParams(
+                          Object.entries(result.request.query).map(([key, value]) => [
+                            key,
+                            String(value),
+                          ]),
+                        ).toString()}
+                      </code>
+                      <span>Fetched {new Date(result.fetchedAt).toLocaleString()}</span>
+                    </div>
+                    <pre className="json-view">{JSON.stringify(result.response, null, 2)}</pre>
+                    {result.nextCursor && resource && (
+                      <button
+                        className="button small"
+                        disabled={loading}
+                        onClick={() => void fetchRaw(resource, result.nextCursor!)}
+                      >
+                        Next Link page
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
-function PageHeading({
-  eyebrow,
-  title,
-  children,
-  aside,
-}: {
-  eyebrow: string;
-  title: string;
-  children: ReactNode;
-  aside?: ReactNode;
-}) {
+function PageHeading({ title, count, screen }: { title: string; count?: number; screen: Screen }) {
   return (
     <div className="page-heading">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>
-          {title}
-          <span className="heading-dot">.</span>
-        </h1>
-        <p className="subtitle">{children}</p>
-      </div>
-      {aside}
+      <h1>
+        {title}
+        {count !== undefined && (
+          <>
+            {' '}
+            <span className="page-count">{count}</span>
+          </>
+        )}
+      </h1>
+      <DataInspector screen={screen} />
     </div>
-  );
-}
-function AccountIcon({ account }: { account: Account }) {
-  return (
-    <span className={`account-icon ${account.type === 'card' ? 'card-icon' : ''}`}>
-      {account.type === 'card' ? <CreditCard size={22} /> : <Landmark size={22} />}
-    </span>
   );
 }
 function AccountsView({
@@ -585,28 +645,13 @@ function AccountsView({
         );
   return (
     <>
-      <PageHeading
-        eyebrow="01 / YOUR ACCOUNTS"
-        title="Everything, accounted for"
-        aside={
-          <div className="heading-counter">
-            <span>{String(active.length).padStart(2, '0')}</span>
-            <small>
-              CONNECTED
-              <br />
-              ACCOUNTS
-            </small>
-          </div>
-        }
-      >
-        A clear view of where your money lives.
-      </PageHeading>
+      <PageHeading title="Accounts" count={active.length} screen="accounts" />
       <div className="section-toolbar">
         <div className="segmented" aria-label="Account type">
           {[
-            ['all', 'All accounts'],
-            ['cash', 'Bank accounts'],
-            ['credit', 'Cards & credit'],
+            ['all', 'All'],
+            ['cash', 'Bank'],
+            ['credit', 'Credit'],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -618,7 +663,6 @@ function AccountsView({
             </button>
           ))}
         </div>
-        <span className="toolbar-caption">BALANCES AS REPORTED BY LINK</span>
       </div>
       {error ? (
         <ErrorNote error={error} />
@@ -626,22 +670,14 @@ function AccountsView({
         <Spinner label="Reading accounts" />
       ) : !all.length ? (
         <div className="panel">
-          <Empty
-            title={
-              response?.sync.status === 'running'
-                ? 'Gathering your accounts'
-                : 'Your financial picture starts here'
-            }
-            icon={<Landmark size={27} />}
-          >
+          <Empty title={response?.sync.status === 'running' ? 'Loading accounts' : 'No accounts'}>
             {response?.sync.status === 'running' ? (
-              'Accounts will appear as Link returns them. You can keep browsing while history imports.'
+              'Accounts will appear as Link returns them.'
             ) : (
               <>
-                No accounts are available yet. Manage your accounts in Link, then refresh Sum.
-                <br />
+                Manage accounts in Link, then refresh Sum.{' '}
                 <a href="https://app.link.com" target="_blank" rel="noreferrer">
-                  Open Link <ArrowUpRight size={12} />
+                  Open Link
                 </a>
               </>
             )}
@@ -656,64 +692,54 @@ function AccountsView({
                 key={account.id}
                 onClick={() => onAccount(account.id)}
               >
-                <div className="account-card-top">
-                  <AccountIcon account={account} />
-                  <span className="account-kind">{pretty(account.type)}</span>
-                  <ArrowUpRight className="account-arrow" size={17} />
+                <div className="account-card-head">
+                  <h2>{account.name}</h2>
+                  <ChevronRight size={16} />
                 </div>
-                <h2>{account.name}</h2>
-                <div className="account-meta">
-                  {account.institution || 'Connected through Link'}
-                  {account.last4 && <span>•• {account.last4}</span>}
-                </div>
+                {(account.institution || account.last4) && (
+                  <div className="account-meta">
+                    {account.institution && <span>{account.institution}</span>}
+                    {account.last4 && <span>•• {account.last4}</span>}
+                  </div>
+                )}
                 <div className="balance-block">
                   {account.balances.length ? (
                     account.balances.map((balance, i) => (
                       <div className="balance-currency" key={i}>
-                        <span className="balance-label">
-                          CURRENT BALANCE <span>{balance.current.currency}</span>
-                        </span>
-                        <strong className="balance-amount">
-                          {formatMoney(balance.current.amount, balance.current.currency)}
-                        </strong>
-                        {(balance.type === 'cash' ? balance.available : balance.used).map(
-                          (money) => (
-                            <div className="secondary-balance" key={money.currency}>
-                              <span>
-                                {balance.type === 'cash' ? 'Available cash' : 'Credit used'}
-                              </span>
-                              <span>{formatMoney(money.amount, money.currency)}</span>
-                            </div>
-                          ),
-                        )}
-                        <span className="balance-time">Bank updated · {ago(balance.asOf)}</span>
+                        <div className="balance-main">
+                          <strong className="balance-amount">
+                            {formatMoney(balance.current.amount, balance.current.currency)}
+                          </strong>
+                          <span>{balance.current.currency.toUpperCase()}</span>
+                        </div>
+                        {balance.type === 'cash' &&
+                          balance.available
+                            .filter(
+                              (money) =>
+                                money.currency === balance.current.currency &&
+                                money.amount !== balance.current.amount,
+                            )
+                            .map((money) => (
+                              <div className="secondary-balance" key={money.currency}>
+                                <span>Available</span>
+                                <span>{formatMoney(money.amount, money.currency)}</span>
+                              </div>
+                            ))}
+                        <span className="balance-time">Updated {ago(balance.asOf)}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="unavailable-balance">
-                      <strong>—</strong>
-                      <span>Balance unavailable</span>
-                      <small>This account hasn’t shared a balance with Link.</small>
-                    </div>
+                    <span className="unavailable-balance">Balance unavailable</span>
                   )}
                 </div>
-                <div className="account-card-foot">
-                  <span>
-                    <span
-                      className={`status-dot ${account.connectionStatus && !['active', 'connected'].includes(account.connectionStatus) ? 'amber' : ''}`}
-                    />
-                    {account.connectionStatus ? pretty(account.connectionStatus) : 'Linked account'}
-                  </span>
-                  <span>
-                    View activity <ChevronRight size={13} />
-                  </span>
-                </div>
+                {account.connectionStatus &&
+                  !['active', 'connected'].includes(account.connectionStatus) && (
+                    <span className="account-warning">{pretty(account.connectionStatus)}</span>
+                  )}
               </button>
             ))}
           </div>
-          {!shown.length && (
-            <Empty title="No accounts in this view">Try another account type.</Empty>
-          )}
+          {!shown.length && <Empty title="No accounts in this view">Choose another type.</Empty>}
           {archived.length > 0 && (
             <details className="archived">
               <summary>
@@ -723,26 +749,13 @@ function AccountsView({
               {archived.map((account) => (
                 <button key={account.id} onClick={() => onAccount(account.id)}>
                   {account.name}
-                  <span>
-                    Saved transactions <ArrowRight size={13} />
-                  </span>
+                  <ChevronRight size={13} />
                 </button>
               ))}
             </details>
           )}
         </>
       )}
-      <div className="data-note">
-        <div className="data-note-symbol">i</div>
-        <div>
-          <strong>The details make the difference.</strong>
-          <p>
-            Current balances don’t include pending transactions. Your bank’s update time may differ
-            from your last Sum sync.
-          </p>
-        </div>
-        <span className="data-note-index">NOTE_001</span>
-      </div>
     </>
   );
 }
@@ -804,12 +817,9 @@ function TransactionsView({ userId }: { userId: string }) {
     return () => clearTimeout(id);
   }, [search]);
   const rows = data.data?.pages.flatMap((page) => page.data) ?? [];
-  const activeFilters = [...params.entries()].filter(([key, value]) => value && key !== 'q').length;
   return (
     <>
-      <PageHeading eyebrow="02 / YOUR TRANSACTIONS" title="Follow the details">
-        Your activity, one transaction at a time.
-      </PageHeading>
+      <PageHeading title="Transactions" screen="transactions" />
       <div className="transactions-panel">
         <div className="transaction-controls">
           <label className="search-field">
@@ -821,12 +831,7 @@ function TransactionsView({ userId }: { userId: string }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <kbd>/</kbd>
           </label>
-          <div className="filter-count">
-            <ListFilter size={14} />
-            FILTERS{activeFilters > 0 && <span>{activeFilters}</span>}
-          </div>
         </div>
         <div className="filter-row">
           <label>
@@ -909,13 +914,8 @@ function TransactionsView({ userId }: { userId: string }) {
         {data.isPending ? (
           <Spinner label="Reading transactions" />
         ) : !rows.length && !data.error ? (
-          <Empty
-            title={query ? 'No matching transactions' : 'Nothing here just yet'}
-            icon={<Search size={24} />}
-          >
-            {query
-              ? 'Try a different search or clear your filters.'
-              : 'Transactions will appear here after your accounts sync with Link.'}
+          <Empty title={query ? 'No matching transactions' : 'No transactions'}>
+            {query ? 'Change or clear the filters.' : 'Transactions will appear after syncing.'}
           </Empty>
         ) : (
           <>
@@ -930,9 +930,6 @@ function TransactionsView({ userId }: { userId: string }) {
                       Date <span>↓</span>
                     </th>
                     <th className="amount-column">Amount</th>
-                    <th>
-                      <span className="sr-only">Details</span>
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -943,48 +940,19 @@ function TransactionsView({ userId }: { userId: string }) {
                           className="transaction-name"
                           onClick={() => setSelected(transaction)}
                         >
-                          <span
-                            className={`transaction-icon ${transaction.amount > 0 ? 'incoming' : ''}`}
-                          >
-                            {transaction.amount > 0 ? (
-                              <ArrowDownLeft size={17} />
-                            ) : (
-                              <ArrowUpRight size={17} />
-                            )}
-                          </span>
                           <span>
                             <strong>{transaction.description || 'Transaction'}</strong>
-                            <small>
-                              {transaction.origin === 'link' ? 'LINK' : 'BANK CONNECTION'}
-                              {!['succeeded', 'posted'].includes(transaction.status) && (
-                                <>
-                                  {' '}
-                                  <span className="origin-separator">/</span>{' '}
-                                  {pretty(transaction.status)}
-                                </>
-                              )}
-                            </small>
+                            {!['succeeded', 'posted'].includes(transaction.status) && (
+                              <small>{pretty(transaction.status)}</small>
+                            )}
                           </span>
                         </button>
                       </td>
                       <td className="account-cell">{transaction.accountName ?? 'Unassigned'}</td>
-                      <td>
-                        <span className="category-tag">
-                          {transaction.category ? pretty(transaction.category) : 'Uncategorized'}
-                        </span>
-                      </td>
+                      <td>{transaction.category ? pretty(transaction.category) : '—'}</td>
                       <td className="date-column">{date(transaction.date)}</td>
                       <td className={`amount-column ${transaction.amount > 0 ? 'positive' : ''}`}>
                         {formatMoney(transaction.amount, transaction.currency, true)}
-                      </td>
-                      <td>
-                        <button
-                          className="icon-button row-detail"
-                          aria-label={`Details for ${transaction.description}`}
-                          onClick={() => setSelected(transaction)}
-                        >
-                          <ChevronRight size={15} />
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -992,7 +960,7 @@ function TransactionsView({ userId }: { userId: string }) {
               </table>
             </div>
             <div className="table-footer">
-              <span>{rows.length} TRANSACTIONS SHOWN</span>
+              <span>{rows.length} shown</span>
               {data.hasNextPage ? (
                 <button
                   className="button small"
@@ -1000,29 +968,15 @@ function TransactionsView({ userId }: { userId: string }) {
                   disabled={data.isFetchingNextPage}
                 >
                   {data.isFetchingNextPage ? 'Loading…' : 'Load more'}
-                  <ArrowDownLeft size={13} />
                 </button>
-              ) : (
-                <span>
-                  YOU’RE ALL CAUGHT UP <Check size={12} />
-                </span>
-              )}
+              ) : null}
             </div>
           </>
         )}
       </div>
-      <div className="transactions-note">
-        <ShieldCheck size={14} />
-        <span>
-          Descriptions, categories, and statuses are provided by Link. All activity is read only.
-        </span>
-      </div>
       {selected && (
-        <Modal title="TRANSACTION / DETAILS" onClose={() => setSelected(null)}>
+        <Modal title="Transaction" onClose={() => setSelected(null)}>
           <div className="transaction-detail">
-            <span className={`transaction-icon large ${selected.amount > 0 ? 'incoming' : ''}`}>
-              {selected.amount > 0 ? <ArrowDownLeft size={27} /> : <ArrowUpRight size={27} />}
-            </span>
             <h2>{selected.description}</h2>
             <div className={`detail-amount ${selected.amount > 0 ? 'positive' : ''}`}>
               {formatMoney(selected.amount, selected.currency, true)}
@@ -1042,14 +996,6 @@ function TransactionsView({ userId }: { userId: string }) {
                 </div>
               ))}
             </dl>
-            <p className="detail-note">
-              {selected.amount < 0
-                ? 'Money leaving this account.'
-                : selected.amount > 0
-                  ? 'Money entering this account.'
-                  : 'A zero-amount transaction.'}{' '}
-              Amounts are reported by Link.
-            </p>
           </div>
         </Modal>
       )}
@@ -1067,86 +1013,41 @@ function ConnectionView({
 }) {
   return (
     <>
-      <PageHeading eyebrow="03 / YOUR CONNECTION" title="The source of it all">
-        One connection. Your financial picture.
-      </PageHeading>
-      <div className="connection-layout">
-        <section className="connection-card">
-          <div className="connection-header">
-            <span className="integration-icon">
-              <Link2 size={26} />
-            </span>
-            <div>
-              <h2>Link</h2>
-              <p>Your connected financial accounts</p>
-            </div>
-            <span className={`connection-badge ${state?.needsReconnect ? 'attention' : ''}`}>
-              {state?.needsReconnect ? 'Needs attention' : 'Connected'}
-            </span>
+      <PageHeading title="Connection" screen="connection" />
+      <section className="connection-card">
+        <div className="connection-header">
+          <h2>Link</h2>
+          <span className={`connection-badge ${state?.needsReconnect ? 'attention' : ''}`}>
+            {state?.needsReconnect ? 'Needs attention' : 'Connected'}
+          </span>
+        </div>
+        <dl className="connection-facts">
+          <div>
+            <dt>Account</dt>
+            <dd>{user.email}</dd>
           </div>
-          <dl className="connection-facts">
-            <div>
-              <dt>Signed in as</dt>
-              <dd>{user.email}</dd>
-            </div>
-            <div>
-              <dt>Last successful sync</dt>
-              <dd>
-                {state?.lastSuccessAt
-                  ? `${date(state.lastSuccessAt)} · ${ago(state.lastSuccessAt)}`
-                  : 'Not synced yet'}
-              </dd>
-            </div>
-            <div>
-              <dt>Transaction history</dt>
-              <dd>
-                {state?.historyComplete
-                  ? 'All available Link history imported'
-                  : 'Initial import pending'}
-              </dd>
-            </div>
-            <div>
-              <dt>Refresh behavior</dt>
-              <dd>On open, after 15 minutes · or manually</dd>
-            </div>
-            <div>
-              <dt>Access</dt>
-              <dd>
-                <ShieldCheck size={14} />
-                Read only
-              </dd>
-            </div>
-          </dl>
-          <div className="connection-actions">
-            <button className="button" onClick={onReconnect}>
-              Reconnect Link
-              <RefreshCw size={14} />
-            </button>
-            <a
-              className="button ghost"
-              href="https://app.link.com"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Manage accounts in Link
-              <ArrowUpRight size={14} />
-            </a>
+          <div>
+            <dt>Last sync</dt>
+            <dd>
+              {state?.lastSuccessAt
+                ? `${date(state.lastSuccessAt)} · ${ago(state.lastSuccessAt)}`
+                : 'Not synced yet'}
+            </dd>
           </div>
-        </section>
-        <aside className="connection-aside">
-          <Database size={24} />
-          <h3>A home for your history.</h3>
-          <p>
-            Sum saves a copy of your available Link data so you can browse quickly, even when a
-            connection needs a moment.
-          </p>
-          <p>
-            Account connections are managed in Link. Reconnect here if you need to approve access
-            again.
-          </p>
-          <span className="eyebrow">YOUR WORKSPACE IS PRIVATE TO YOU</span>
-        </aside>
-      </div>
+          <div>
+            <dt>History</dt>
+            <dd>{state?.historyComplete ? 'Imported' : 'Import pending'}</dd>
+          </div>
+        </dl>
+        <div className="connection-actions">
+          <button className="button" onClick={onReconnect}>
+            Reconnect
+          </button>
+          <a className="button ghost" href="https://app.link.com" target="_blank" rel="noreferrer">
+            Manage in Link <ArrowUpRight size={14} />
+          </a>
+        </div>
+      </section>
     </>
   );
 }

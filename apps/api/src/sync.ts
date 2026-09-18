@@ -1,4 +1,5 @@
 import { eq, and, notInArray, sql } from 'drizzle-orm';
+import type { Balance, Source } from '@stripe/link-sdk';
 import { accounts, balances, credentials, syncStates, transactions, type Database } from '@sum/db';
 import type { SyncState } from '@sum/contracts';
 import type { Auth } from './auth.js';
@@ -83,7 +84,7 @@ export function createSync(database: Database, auth: Auth) {
         }
         await attempt(async () => {
           const sourceIds: string[] = [];
-          await paginate(
+          await paginate<Source>(
             (cursor) => {
               checkRunning();
               return client.sources.list({ limit: 100, starting_after: cursor });
@@ -113,7 +114,7 @@ export function createSync(database: Database, auth: Auth) {
         });
         await attempt(async () => {
           const grouped = new Map<string, ReturnType<typeof normalizeBalance>[]>();
-          await paginate(
+          await paginate<Balance>(
             (cursor) => {
               checkRunning();
               return client.balances.list({ limit: 100, starting_after: cursor });

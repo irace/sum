@@ -18,7 +18,6 @@ describe.skipIf(!url)('API + PostgreSQL integration', () => {
   let refreshCalls = 0;
   const calls: (string | undefined)[] = [];
   const fixture: FinancialClient = {
-    userInfo: { retrieve: async () => ({ email, name: 'Test user' }) },
     sources: {
       list: async () => ({
         data: [
@@ -163,6 +162,9 @@ describe.skipIf(!url)('API + PostgreSQL integration', () => {
   }
   it('requires authentication and protects cross-origin writes', async () => {
     expect((await instance.app.inject('/api/v1/accounts')).statusCode).toBe(401);
+    expect((await instance.app.inject('/api/v1/link/inspect?resource=sources')).statusCode).toBe(
+      401,
+    );
     expect(
       (await instance.app.inject({ method: 'POST', url: '/api/v1/auth/link/start', payload: {} }))
         .statusCode,
@@ -177,6 +179,28 @@ describe.skipIf(!url)('API + PostgreSQL integration', () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+  it('shows a fresh Link page without credentials and validates inspection inputs', async () => {
+    const { cookie } = await login();
+    const response = await instance.app.inject({
+      url: '/api/v1/link/inspect?resource=sources',
+      headers: { cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      request: { method: 'GET', path: '/sources', query: { limit: 100 } },
+      response: { data: [{ id: 'shared-source', name: 'Everyday Checking' }] },
+      nextCursor: null,
+    });
+    expect(response.body).not.toContain('private-access-token');
+    expect(
+      (
+        await instance.app.inject({
+          url: '/api/v1/link/inspect?resource=payments',
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(400);
   });
   it('authenticates, encrypts tokens, binds the challenge, and logs out', async () => {
     const { response, cookie } = await login();

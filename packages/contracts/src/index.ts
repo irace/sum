@@ -90,6 +90,17 @@ export interface Filters {
   accounts: { id: string; name: string }[];
   categories: string[];
 }
+export type LinkResource = 'sources' | 'balances' | 'transactions';
+export interface LinkInspection {
+  request: {
+    method: 'GET';
+    path: string;
+    query: Record<string, string | number>;
+  };
+  response: { data: unknown[]; has_more?: boolean; [key: string]: unknown };
+  nextCursor: string | null;
+  fetchedAt: string;
+}
 export interface ApiError {
   error: string;
   code?: string;

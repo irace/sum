@@ -12,7 +12,7 @@ import type { Config } from './config.js';
 import { createAuth } from './auth.js';
 import { createCatalog } from './catalog.js';
 import { createSync } from './sync.js';
-import { createLinkProvider, type LinkProvider } from './link.js';
+import { createLinkProvider, safeLinkError, type LinkProvider } from './link.js';
 import { AppError } from './security.js';
 
 export async function createApp(
@@ -149,6 +149,52 @@ export async function createApp(
     const user = await auth.requireUser(request);
     return sync.state(user.id);
   });
+  app.get(
+    '/api/v1/link/inspect',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const user = await auth.requireUser(request);
+      const { resource, cursor, start } = z
+        .object({
+          resource: z.enum(['sources', 'balances', 'transactions']),
+          cursor: z.string().min(1).max(200).optional(),
+          start: z.iso.date().optional(),
+        })
+        .parse(request.query);
+      if (start && resource !== 'transactions')
+        throw new AppError(400, 'A start date applies only to transactions.', 'invalid_request');
+      const params = { limit: 100, starting_after: cursor };
+      const client = auth.client(user.id);
+      try {
+        const response =
+          resource === 'sources'
+            ? await client.sources.list(params)
+            : resource === 'balances'
+              ? await client.balances.list(params)
+              : await client.transactions.list({
+                  ...params,
+                  ...(start ? { start_date: start } : {}),
+                });
+        const last = response.data.at(-1);
+        const nextCursor =
+          response.has_more && last ? (resource === 'balances' ? last.source_id : last.id) : null;
+        const query = {
+          limit: 100,
+          ...(start ? { start_date: start } : {}),
+          ...(cursor ? { starting_after: cursor } : {}),
+        };
+        return {
+          request: { method: 'GET', path: `/${resource}`, query },
+          response,
+          nextCursor,
+          fetchedAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        throw new AppError(502, safeLinkError(error), 'link_inspection_failed');
+      }
+    },
+  );
   app.post(
     '/api/v1/sync',
     { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } },

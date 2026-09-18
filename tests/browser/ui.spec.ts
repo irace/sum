@@ -95,7 +95,15 @@ async function mock(page: Page, signedIn = true) {
         accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
         categories: ['groceries', 'shopping', 'income'],
       };
-    else if (path.endsWith('/transactions')) {
+    else if (path.endsWith('/link/inspect')) {
+      const resource = url.searchParams.get('resource');
+      body = {
+        request: { method: 'GET', path: `/${resource}`, query: { limit: 100 } },
+        response: { data: [{ id: 'raw-link-source', name: 'Everyday Checking' }], has_more: false },
+        nextCursor: null,
+        fetchedAt: '2026-09-16T20:30:00Z',
+      };
+    } else if (path.endsWith('/transactions')) {
       const q = url.searchParams.get('q')?.toLowerCase() ?? '';
       const account = url.searchParams.get('account');
       body = {
@@ -120,32 +128,39 @@ test('desktop accounts, navigation, filters and transaction detail', async ({ pa
   await page.setViewportSize({ width: 1440, height: 1050 });
   await mock(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Everything, accounted for.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Accounts 6' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Everyday Checking' })).toBeVisible();
   await expect(page.getByText('$8,245.30', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/accounts-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'Cards & credit', exact: true }).click();
+  await page.getByRole('button', { name: 'About accounts data' }).click();
+  await expect(
+    page.getByRole('dialog').getByText('GET /sources?limit=100&starting_after=id'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Raw sources' }).click();
+  await expect(page.getByRole('dialog').getByText(/raw-link-source/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Credit', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Everyday Checking' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: /Whole Foods Market BANK CONNECTION/ }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Whole Foods Market', exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/transactions-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'Details for Whole Foods Market' }).click();
+  await page.getByRole('button', { name: 'Whole Foods Market', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByText('-$86.42', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Search transactions' }).fill('coffee');
-  await expect(
-    page.getByRole('button', { name: /Blue Bottle Coffee BANK CONNECTION/ }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: /Whole Foods Market BANK CONNECTION/ }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Blue Bottle Coffee', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Whole Foods Market', exact: true })).toHaveCount(
+    0,
+  );
   await page.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(page.getByRole('button', { name: 'Whole Foods Market', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Connection', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Link' })).toBeVisible();
+  await page.getByRole('button', { name: 'About connection data' }).click();
   await expect(
-    page.getByRole('button', { name: /Whole Foods Market BANK CONNECTION/ }),
+    page.getByRole('dialog').getByText(/There is no single Link response/),
   ).toBeVisible();
 });
 test('phone layouts do not overflow and account links filter activity', async ({ page }) => {
@@ -168,9 +183,9 @@ test('Link sign-in displays the returned approval phrase', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await mock(page, false);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Less noise/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in with Link' })).toBeVisible();
   await page.screenshot({ path: 'test-results/login-desktop.png', fullPage: true });
-  await page.getByRole('button', { name: 'Continue with Link' }).click();
+  await page.getByRole('button', { name: 'Sign in with Link' }).click();
   await expect(page.getByText('moss-lake-river')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Link' })).toHaveAttribute(
     'href',

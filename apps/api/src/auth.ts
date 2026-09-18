@@ -2,7 +2,7 @@ import { and, eq, gt, lt } from 'drizzle-orm';
 import { authFlows, credentials, sessions, users, type Database } from '@sum/db';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Config } from './config.js';
-import type { LinkProvider, Tokens } from './link.js';
+import type { LinkIdentity, LinkProvider, Tokens } from './link.js';
 import { AppError, hashToken, opaqueToken, seal, unseal } from './security.js';
 import { withLock } from './locks.js';
 import { z } from 'zod';
@@ -146,11 +146,7 @@ export function createAuth(database: Database, config: Config, provider: LinkPro
           reply.clearCookie(flowCookie, cookie);
           return { status: result };
         }
-        let info: {
-          email?: string | null;
-          name?: string | null;
-          first_name?: string | null;
-        };
+        let info: LinkIdentity;
         let identityRetried = false;
         try {
           try {

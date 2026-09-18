@@ -1,11 +1,4 @@
-import Link, {
-  LinkApiError,
-  type Source,
-  type Balance,
-  type Transaction,
-  type ListTransactionsParams,
-  type UserInfo,
-} from '@stripe/link-sdk';
+import Link, { type AccessTokenProvider, LinkApiError, type UserInfo } from '@stripe/link-sdk';
 import { z } from 'zod';
 import { AppError, fingerprintToken } from './security.js';
 
@@ -22,27 +15,15 @@ export interface DeviceChallenge {
   expires_in: number;
   interval: number;
 }
-export interface Page<T> {
-  data: T[];
-  has_more?: boolean;
-}
-export interface FinancialClient {
-  sources: { list(params?: { limit?: number; starting_after?: string }): Promise<Page<Source>> };
-  balances: { list(params?: { limit?: number; starting_after?: string }): Promise<Page<Balance>> };
-  transactions: { list(params?: ListTransactionsParams): Promise<Page<Transaction>> };
-  userInfo: { retrieve(): Promise<UserInfo> };
-}
+export type FinancialClient = Pick<Link, 'sources' | 'balances' | 'transactions'>;
+export type LinkIdentity = Pick<UserInfo, 'email' | 'name' | 'first_name'>;
 export interface LinkProvider {
   start(): Promise<DeviceChallenge>;
   poll(code: string): Promise<Tokens | 'pending' | 'slow_down' | 'expired' | 'denied'>;
   refresh(token: string): Promise<Tokens>;
   revoke(token: string): Promise<void>;
-  retrieveIdentity(accessToken: string): Promise<{
-    email?: string | null;
-    name?: string | null;
-    first_name?: string | null;
-  }>;
-  client(getToken: (options?: { forceRefresh?: boolean }) => Promise<string>): FinancialClient;
+  retrieveIdentity(accessToken: string): Promise<LinkIdentity>;
+  client(getToken: AccessTokenProvider): FinancialClient;
 }
 const tokensSchema = z.object({
   access_token: z.string().min(1),
